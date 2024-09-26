@@ -42,6 +42,17 @@ class LoadBalancer:
         elif self.strategy == Strategy.ROUND_ROBIN:
             return self.get_round_robin()
 
+    def add_instance(self, instance):
+        if len(self.instances) >= self.MAX_INSTANCES:
+            raise ValueError("Too many instances")
+        self.instances.append(instance)
+
+    def remove_instance(self, instance):
+        if not instance in self.instances:
+            raise ValueError(f"Instance {instance} doesn't exist")
+        self.instances.remove(instance)
+        self.current_idx = self.current_idx % len(self.instances) if self.instances else 0
+
 
 class TestLoadBalancer(unittest.TestCase):
     def setUp(self):
@@ -63,3 +74,25 @@ class TestLoadBalancer(unittest.TestCase):
         self.assertEqual(self.lb.get_instance(), "instance1")
         self.assertEqual(self.lb.get_instance(), "instance2")
         self.assertEqual(self.lb.get_instance(), "instance3")
+
+    def test_add_instance(self):
+        current_instances_len = len(self.instances)
+        self.lb.add_instance("instance5")
+        self.assertIn("instance5", self.instances)
+        self.assertEqual(current_instances_len + 1, len(self.instances))
+
+    def test_remove_instance(self):
+        current_instances_len = len(self.instances)
+        self.lb.remove_instance("instance2")
+        self.assertNotIn("instance2", self.instances)
+        self.assertEqual(current_instances_len - 1, len(self.instances))
+
+    def test_remove_invalid_instance(self):
+        with self.assertRaises(ValueError) as exc_info:
+            self.lb.remove_instance("instance6")
+        self.assertTrue("Instance instance6 doesn't exist" in str(exc_info.exception))
+
+    def test_add_instance_limit(self):
+        with self.assertRaises(ValueError) as exc_info:
+            [self.lb.add_instance("instance" + str(i)) for i in range(self.lb.MAX_INSTANCES)]
+        self.assertTrue("Too many" in str(exc_info.exception))
